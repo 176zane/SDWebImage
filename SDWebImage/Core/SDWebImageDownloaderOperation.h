@@ -46,6 +46,8 @@
 /**
  The download operation class for SDWebImageDownloader.
  */
+//自定义NSOperation类
+//https://developer.apple.com/documentation/foundation/nsoperation
 @interface SDWebImageDownloaderOperation : NSOperation <SDWebImageDownloaderOperation>
 
 /**

@@ -90,6 +90,7 @@ static void * SDWebImageDownloaderContext = &SDWebImageDownloaderContext;
     self = [super init];
     if (self) {
         if (!config) {
+            //最大6并发 15秒超时
             config = SDWebImageDownloaderConfig.defaultDownloaderConfig;
         }
         _config = [config copy];
@@ -131,6 +132,7 @@ static void * SDWebImageDownloaderContext = &SDWebImageDownloaderContext;
          *  We send nil as delegate queue so that the session creates a serial operation queue for performing all delegate
          *  method calls and completion handler calls.
          */
+        //delegateQueue传入nil会自动创建一个串行队列来处理回调，确保回调的顺序正确。
         _session = [NSURLSession sessionWithConfiguration:sessionConfiguration
                                                  delegate:self
                                             delegateQueue:nil];
@@ -145,7 +147,7 @@ static void * SDWebImageDownloaderContext = &SDWebImageDownloaderContext;
     [self.downloadQueue cancelAllOperations];
     [self.config removeObserver:self forKeyPath:NSStringFromSelector(@selector(maxConcurrentDownloads)) context:SDWebImageDownloaderContext];
 }
-
+//只有在使用自定义downloader时才需要调用次方法防止内存泄露
 - (void)invalidateSessionAndCancel:(BOOL)cancelPendingOperations {
     if (self == [SDWebImageDownloader sharedDownloader]) {
         return;
@@ -187,7 +189,7 @@ static void * SDWebImageDownloaderContext = &SDWebImageDownloaderContext;
                                                  completed:(SDWebImageDownloaderCompletedBlock)completedBlock {
     return [self downloadImageWithURL:url options:options context:nil progress:progressBlock completed:completedBlock];
 }
-
+//返回用于取消该operation的token对象
 - (nullable SDWebImageDownloadToken *)downloadImageWithURL:(nullable NSURL *)url
                                                    options:(SDWebImageDownloaderOptions)options
                                                    context:(nullable SDWebImageContext *)context
@@ -267,6 +269,7 @@ static void * SDWebImageDownloaderContext = &SDWebImageDownloaderContext;
     }
     
     // In order to prevent from potential duplicate caching (NSURLCache + SDImageCache) we disable the cache for image requests if told otherwise
+    //默认情况下是禁止使用NSURLCache缓存的 因为已经有了SDImageCache缓存系统
     NSURLRequestCachePolicy cachePolicy = options & SDWebImageDownloaderUseNSURLCache ? NSURLRequestUseProtocolCachePolicy : NSURLRequestReloadIgnoringLocalCacheData;
     NSMutableURLRequest *mutableRequest = [[NSMutableURLRequest alloc] initWithURL:url cachePolicy:cachePolicy timeoutInterval:timeoutInterval];
     mutableRequest.HTTPShouldHandleCookies = SD_OPTIONS_CONTAINS(options, SDWebImageDownloaderHandleCookies);
@@ -358,6 +361,7 @@ static void * SDWebImageDownloaderContext = &SDWebImageDownloaderContext;
         // This can gurantee the new operation to be execulated firstly, even if when some operations finished, meanwhile you appending new operations
         // Just make last added operation dependents new operation can not solve this problem. See test case #test15DownloaderLIFOExecutionOrder
         for (NSOperation *pendingOperation in self.downloadQueue.operations) {
+            //只能影响未开始的operation 已经开始的不受影响
             [pendingOperation addDependency:operation];
         }
     }

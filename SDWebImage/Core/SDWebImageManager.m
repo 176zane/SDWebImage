@@ -158,7 +158,7 @@ static id<SDImageLoader> _defaultImageLoader;
     if (![url isKindOfClass:NSURL.class]) {
         url = nil;
     }
-
+    //创建combinedOperation 用于返回值
     SDWebImageCombinedOperation *operation = [SDWebImageCombinedOperation new];
     operation.manager = self;
 
@@ -258,7 +258,7 @@ static id<SDImageLoader> _defaultImageLoader;
         imageLoader = self.imageLoader;
     }
     // Check whether we should download image from network
-    BOOL shouldDownload = !SD_OPTIONS_CONTAINS(options, SDWebImageFromCacheOnly);
+    BOOL shouldDownload = !SD_OPTIONS_CONTAINS(options, SDWebImageFromCacheOnly);//不包含SDWebImageFromCacheOnly
     shouldDownload &= (!cachedImage || options & SDWebImageRefreshCached);
     shouldDownload &= (![self.delegate respondsToSelector:@selector(imageManager:shouldDownloadImageForURL:)] || [self.delegate imageManager:self shouldDownloadImageForURL:url]);
     shouldDownload &= [imageLoader canRequestImageForURL:url];
@@ -285,6 +285,7 @@ static id<SDImageLoader> _defaultImageLoader;
                 // Image combined operation cancelled by user
                 [self callCompletionBlockForOperation:operation completion:completedBlock error:[NSError errorWithDomain:SDWebImageErrorDomain code:SDWebImageErrorCancelled userInfo:@{NSLocalizedDescriptionKey : @"Operation cancelled by user during sending the request"}] url:url];
             } else if (cachedImage && options & SDWebImageRefreshCached && [error.domain isEqualToString:SDWebImageErrorDomain] && error.code == SDWebImageErrorCacheNotModified) {
+                //NSURLCache 缓存命中后，不再回调completion block
                 // Image refresh hit the NSURLCache cache, do not call the completion block
             } else if ([error.domain isEqualToString:SDWebImageErrorDomain] && error.code == SDWebImageErrorCancelled) {
                 // Download operation cancelled by user before sending the request, don't block failed URL
@@ -312,10 +313,10 @@ static id<SDImageLoader> _defaultImageLoader;
                 [self safelyRemoveOperationFromRunning:operation];
             }
         }];
-    } else if (cachedImage) {
+    } else if (cachedImage) {//直接返回缓存图片
         [self callCompletionBlockForOperation:operation completion:completedBlock image:cachedImage data:cachedData error:nil cacheType:cacheType finished:YES url:url];
         [self safelyRemoveOperationFromRunning:operation];
-    } else {
+    } else {//既没有缓存图片，又不让下载
         // Image not in cache and download disallowed by delegate
         [self callCompletionBlockForOperation:operation completion:completedBlock image:nil data:nil error:nil cacheType:SDImageCacheTypeNone finished:YES url:url];
         [self safelyRemoveOperationFromRunning:operation];
@@ -352,7 +353,7 @@ static id<SDImageLoader> _defaultImageLoader;
     BOOL shouldCacheOriginal = downloadedImage && finished;
     
     // if available, store original image to cache
-    if (shouldCacheOriginal) {
+    if (shouldCacheOriginal) {//保存转换前的image data
         // normally use the store cache type, but if target image is transformed, use original store cache type instead
         SDImageCacheType targetStoreCacheType = shouldTransformImage ? originalStoreCacheType : storeCacheType;
         if (cacheSerializer && (targetStoreCacheType == SDImageCacheTypeDisk || targetStoreCacheType == SDImageCacheTypeAll)) {
@@ -405,6 +406,7 @@ static id<SDImageLoader> _defaultImageLoader;
                 UIImage *transformedImage = [transformer transformedImageWithImage:originalImage forKey:key];
                 if (transformedImage && finished) {
                     NSString *transformerKey = [transformer transformerKey];
+                    //转换后的key 与存储原图的key 不同
                     NSString *cacheKey = SDTransformedKeyForKey(key, transformerKey);
                     BOOL imageWasTransformed = ![transformedImage isEqual:originalImage];
                     NSData *cacheData;

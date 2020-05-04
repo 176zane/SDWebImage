@@ -33,6 +33,7 @@ const int64_t SDWebImageProgressUnitCountUnknown = 1LL;
 }
 
 - (NSProgress *)sd_imageProgress {
+    //默认不设置
     NSProgress *progress = objc_getAssociatedObject(self, @selector(sd_imageProgress));
     if (!progress) {
         progress = [[NSProgress alloc] initWithParent:nil userInfo:nil];
@@ -57,10 +58,11 @@ const int64_t SDWebImageProgressUnitCountUnknown = 1LL;
     if (!validOperationKey) {
         validOperationKey = NSStringFromClass([self class]);
     }
+    //取消上次operation
     self.sd_latestOperationKey = validOperationKey;
     [self sd_cancelImageLoadOperationWithKey:validOperationKey];
     self.sd_imageURL = url;
-    
+    //设置placeholder
     if (!(options & SDWebImageDelayPlaceholder)) {
         dispatch_main_async_safe(^{
             [self sd_setImage:placeholder imageData:nil basedOnClassOrViaCustomSetImageBlock:setImageBlock cacheType:SDImageCacheTypeNone imageURL:url];
@@ -68,7 +70,7 @@ const int64_t SDWebImageProgressUnitCountUnknown = 1LL;
     }
     
     if (url) {
-        // reset the progress
+        // 重置 progress
         NSProgress *imageProgress = objc_getAssociatedObject(self, @selector(sd_imageProgress));
         if (imageProgress) {
             imageProgress.totalUnitCount = 0;
@@ -80,11 +82,12 @@ const int64_t SDWebImageProgressUnitCountUnknown = 1LL;
         [self sd_startImageIndicator];
         id<SDWebImageIndicator> imageIndicator = self.sd_imageIndicator;
 #endif
+        //获取 sharedManager
         SDWebImageManager *manager = context[SDWebImageContextCustomManager];
         if (!manager) {
             manager = [SDWebImageManager sharedManager];
         }
-        
+        //设置 progressBlock
         SDImageLoaderProgressBlock combinedProgressBlock = ^(NSInteger receivedSize, NSInteger expectedSize, NSURL * _Nullable targetURL) {
             if (imageProgress) {
                 imageProgress.totalUnitCount = expectedSize;
@@ -106,6 +109,7 @@ const int64_t SDWebImageProgressUnitCountUnknown = 1LL;
                 progressBlock(receivedSize, expectedSize, targetURL);
             }
         };
+        //开启loader
         @weakify(self);
         id <SDWebImageOperation> operation = [manager loadImageWithURL:url options:options context:context progress:combinedProgressBlock completed:^(UIImage *image, NSData *data, NSError *error, SDImageCacheType cacheType, BOOL finished, NSURL *imageURL) {
             @strongify(self);
@@ -172,6 +176,7 @@ const int64_t SDWebImageProgressUnitCountUnknown = 1LL;
                 callCompletedBlockClojure();
             });
         }];
+        //将当前operation存入一个强引用key,弱引用value的NSMapTable中，value实例其实是保存在manager.runningOperations的NSMutableSet中
         [self sd_setImageLoadOperation:operation forKey:validOperationKey];
     } else {
 #if SD_UIKIT || SD_MAC

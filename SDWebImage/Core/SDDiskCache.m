@@ -186,6 +186,7 @@ static NSString * const SDDiskCacheExtendedAttributeName = @"com.hackemist.SDDis
         }
         
         // Remove files that are older than the expiration date;
+        //1 删除过期文件
         NSDate *modifiedDate = resourceValues[cacheContentDateKey];
         if (expirationDate && [[modifiedDate laterDate:expirationDate] isEqualToDate:expirationDate]) {
             [urlsToDelete addObject:fileURL];
@@ -204,6 +205,7 @@ static NSString * const SDDiskCacheExtendedAttributeName = @"com.hackemist.SDDis
     
     // If our remaining disk cache exceeds a configured maximum size, perform a second
     // size-based cleanup pass.  We delete the oldest files first.
+    //2 容量过大时，基于cacheContentDateKey所代表的时间删除文件至1/2的理想大小
     NSUInteger maxDiskSize = self.config.maxDiskSize;
     if (maxDiskSize > 0 && currentCacheSize > maxDiskSize) {
         // Target half of our maximum cache size for this cleanup pass.

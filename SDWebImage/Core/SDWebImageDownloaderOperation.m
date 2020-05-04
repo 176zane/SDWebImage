@@ -69,7 +69,7 @@ typedef NSMutableDictionary<NSString *, id> SDCallbacksDictionary;
 - (nonnull instancetype)init {
     return [self initWithRequest:nil inSession:nil options:0];
 }
-
+#pragma mark <SDWebImageDownloaderOperation>
 - (instancetype)initWithRequest:(NSURLRequest *)request inSession:(NSURLSession *)session options:(SDWebImageDownloaderOptions)options {
     return [self initWithRequest:request inSession:session options:options context:nil];
 }
@@ -80,17 +80,18 @@ typedef NSMutableDictionary<NSString *, id> SDCallbacksDictionary;
                                 context:(nullable SDWebImageContext *)context {
     if ((self = [super init])) {
         _request = [request copy];
+        _unownedSession = session;
         _options = options;
         _context = [context copy];
+        
         _callbackBlocks = [NSMutableArray new];
         _responseModifier = context[SDWebImageContextDownloadResponseModifier];
         _decryptor = context[SDWebImageContextDownloadDecryptor];
         _executing = NO;
         _finished = NO;
         _expectedSize = 0;
-        _unownedSession = session;
         _coderQueue = [NSOperationQueue new];
-        _coderQueue.maxConcurrentOperationCount = 1;
+        _coderQueue.maxConcurrentOperationCount = 1;//用于图片解码的串行队列
 #if SD_UIKIT
         _backgroundTaskId = UIBackgroundTaskInvalid;
 #endif
@@ -108,17 +109,7 @@ typedef NSMutableDictionary<NSString *, id> SDCallbacksDictionary;
     }
     return callbacks;
 }
-
-- (nullable NSArray<id> *)callbacksForKey:(NSString *)key {
-    NSMutableArray<id> *callbacks;
-    @synchronized (self) {
-        callbacks = [[self.callbackBlocks valueForKey:key] mutableCopy];
-    }
-    // We need to remove [NSNull null] because there might not always be a progress block for each callback
-    [callbacks removeObjectIdenticalTo:[NSNull null]];
-    return [callbacks copy]; // strip mutability here
-}
-
+//当最后的token被取消后 operation 停止，此时返回YES
 - (BOOL)cancel:(nullable id)token {
     if (!token) return NO;
     
@@ -147,9 +138,12 @@ typedef NSMutableDictionary<NSString *, id> SDCallbacksDictionary;
     }
     return shouldCancel;
 }
-
+#pragma mark -overwrite NSOperation
+//In a concurrent operation, your start method is responsible for starting the operation in an asynchronous manner. Whether you spawn a thread or call an asynchronous function, you do it from this method. Upon starting the operation, your start method should also update the execution state of the operation as reported by the executing property. You do this by sending out KVO notifications for the executing key path, which lets interested clients know that the operation is now running. Your executing property must also provide the status in a thread-safe manner.
+//When you add an operation to an operation queue, the queue ignores the value of the asynchronous property and always calls the start method from a separate thread. Therefore, if you always run operations by adding them to an operation queue, there is no reason to make them asynchronous.
 - (void)start {
     @synchronized (self) {
+        //先判断是否已被用户取消
         if (self.isCancelled) {
             self.finished = YES;
             // Operation cancelled by user before sending the request
@@ -165,6 +159,7 @@ typedef NSMutableDictionary<NSString *, id> SDCallbacksDictionary;
             __weak typeof(self) wself = self;
             UIApplication * app = [UIApplicationClass performSelector:@selector(sharedApplication)];
             self.backgroundTaskId = [app beginBackgroundTaskWithExpirationHandler:^{
+                //block中调用endBackgroundTask:方法
                 [wself cancel];
             }];
         }
@@ -200,7 +195,7 @@ typedef NSMutableDictionary<NSString *, id> SDCallbacksDictionary;
                 self.cachedData = cachedResponse.data;
             }
         }
-        
+        //创建dataTask
         self.dataTask = [session dataTaskWithRequest:self.request];
         self.executing = YES;
     }
@@ -216,6 +211,7 @@ typedef NSMutableDictionary<NSString *, id> SDCallbacksDictionary;
             self.dataTask.priority = NSURLSessionTaskPriorityDefault;
             self.coderQueue.qualityOfService = NSQualityOfServiceDefault;
         }
+        //开启任务
         [self.dataTask resume];
         for (SDWebImageDownloaderProgressBlock progressBlock in [self callbacksForKey:kProgressCallbackKey]) {
             progressBlock(0, NSURLResponseUnknownLength, self.request.URL);
@@ -236,6 +232,23 @@ typedef NSMutableDictionary<NSString *, id> SDCallbacksDictionary;
     }
 }
 
+//重新set方法，保证KVO兼容
+- (void)setFinished:(BOOL)finished {
+    [self willChangeValueForKey:@"isFinished"];
+    _finished = finished;
+    [self didChangeValueForKey:@"isFinished"];
+}
+
+- (void)setExecuting:(BOOL)executing {
+    [self willChangeValueForKey:@"isExecuting"];
+    _executing = executing;
+    [self didChangeValueForKey:@"isExecuting"];
+}
+//后续将使用asynchronous属性替代
+- (BOOL)isConcurrent {
+    return YES;
+}
+#pragma mark Helper methods
 - (void)cancelInternal {
     if (self.isFinished) return;
     [super cancel];
@@ -269,7 +282,7 @@ typedef NSMutableDictionary<NSString *, id> SDCallbacksDictionary;
     @synchronized (self) {
         [self.callbackBlocks removeAllObjects];
         self.dataTask = nil;
-        
+        //reset方法中释放其强引用的session，打破retainCycle
         if (self.ownedSession) {
             [self.ownedSession invalidateAndCancel];
             self.ownedSession = nil;
@@ -285,23 +298,6 @@ typedef NSMutableDictionary<NSString *, id> SDCallbacksDictionary;
 #endif
     }
 }
-
-- (void)setFinished:(BOOL)finished {
-    [self willChangeValueForKey:@"isFinished"];
-    _finished = finished;
-    [self didChangeValueForKey:@"isFinished"];
-}
-
-- (void)setExecuting:(BOOL)executing {
-    [self willChangeValueForKey:@"isExecuting"];
-    _executing = executing;
-    [self didChangeValueForKey:@"isExecuting"];
-}
-
-- (BOOL)isConcurrent {
-    return YES;
-}
-
 #pragma mark NSURLSessionDataDelegate
 
 - (void)URLSession:(NSURLSession *)session
@@ -340,6 +336,7 @@ didReceiveResponse:(NSURLResponse *)response
     }
     
     if (valid) {
+        //有效 第一次回调progressBlock
         for (SDWebImageDownloaderProgressBlock progressBlock in [self callbacksForKey:kProgressCallbackKey]) {
             progressBlock(0, expected, self.request.URL);
         }
@@ -391,9 +388,11 @@ didReceiveResponse:(NSURLResponse *)response
         NSData *imageData = [self.imageData copy];
         
         // keep maxmium one progressive decode process during download
+        //queue中最多保持一个渐进式解码operation
         if (self.coderQueue.operationCount == 0) {
             // NSOperation have autoreleasepool, don't need to create extra one
             [self.coderQueue addOperationWithBlock:^{
+                //传入的data是已经接收的所有数据，而不是只是新增数据
                 UIImage *image = SDImageLoaderDecodeProgressiveImageData(imageData, self.request.URL, finished, self, [[self class] imageOptionsFromDownloaderOptions:self.options], self.context);
                 if (image) {
                     // We do not keep the progressive decoding image even when `finished`=YES. Because they are for view rendering but not take full function from downloader options. And some coders implementation may not keep consistent between progressive decoding and normal decoding.
@@ -418,6 +417,7 @@ didReceiveResponse:(NSURLResponse *)response
 
     if (!(self.options & SDWebImageDownloaderUseNSURLCache)) {
         // Prevents caching of responses
+        // 阻止 NSCachedURLResponse 缓存
         cachedResponse = nil;
     }
     if (completionHandler) {
@@ -436,7 +436,7 @@ didReceiveResponse:(NSURLResponse *)response
         __block typeof(self) strongSelf = self;
         dispatch_async(dispatch_get_main_queue(), ^{
             [[NSNotificationCenter defaultCenter] postNotificationName:SDWebImageDownloadStopNotification object:strongSelf];
-            if (!error) {
+            if (!error) {//只有在成功的时候才发送 SDWebImageDownloadFinishNotification 通知
                 [[NSNotificationCenter defaultCenter] postNotificationName:SDWebImageDownloadFinishNotification object:strongSelf];
             }
         });
@@ -526,6 +526,18 @@ didReceiveResponse:(NSURLResponse *)response
 }
 
 #pragma mark Helper methods
+
+- (nullable NSArray<id> *)callbacksForKey:(NSString *)key {
+    NSMutableArray<id> *callbacks;
+    @synchronized (self) {
+        callbacks = [[self.callbackBlocks valueForKey:key] mutableCopy];
+    }
+    // We need to remove [NSNull null] because there might not always be a progress block for each callback
+    [callbacks removeObjectIdenticalTo:[NSNull null]];
+    return [callbacks copy]; // strip mutability here
+}
+
+
 + (SDWebImageOptions)imageOptionsFromDownloaderOptions:(SDWebImageDownloaderOptions)downloadOptions {
     SDWebImageOptions options = 0;
     if (downloadOptions & SDWebImageDownloaderScaleDownLargeImages) options |= SDWebImageScaleDownLargeImages;

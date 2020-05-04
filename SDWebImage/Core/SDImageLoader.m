@@ -64,7 +64,7 @@ UIImage * _Nullable SDImageLoaderDecodeImageData(NSData * _Nonnull imageData, NS
         // check whether we should use `SDAnimatedImage`
         Class animatedImageClass = context[SDWebImageContextAnimatedImageClass];
         if ([animatedImageClass isSubclassOfClass:[UIImage class]] && [animatedImageClass conformsToProtocol:@protocol(SDAnimatedImage)]) {
-            image = [[animatedImageClass alloc] initWithData:imageData scale:scale options:coderOptions];
+            image = [[animatedImageClass alloc] initWithData:imageData scale:scale options:coderOptions];//第一帧图片
             if (image) {
                 // Preload frames if supported
                 if (options & SDWebImagePreloadAllFrames && [image respondsToSelector:@selector(preloadAllFrames)]) {
@@ -115,6 +115,7 @@ UIImage * _Nullable SDImageLoaderDecodeProgressiveImageData(NSData * _Nonnull im
     BOOL decodeFirstFrame = SD_OPTIONS_CONTAINS(options, SDWebImageDecodeFirstFrameOnly);
     NSNumber *scaleValue = context[SDWebImageContextImageScaleFactor];
     CGFloat scale = scaleValue.doubleValue >= 1 ? scaleValue.doubleValue : SDImageScaleFactorForKey(cacheKey);
+    
     NSNumber *preserveAspectRatioValue = context[SDWebImageContextImagePreserveAspectRatio];
     NSValue *thumbnailSizeValue;
     BOOL shouldScaleDown = SD_OPTIONS_CONTAINS(options, SDWebImageScaleDownLargeImages);
@@ -167,6 +168,7 @@ UIImage * _Nullable SDImageLoaderDecodeProgressiveImageData(NSData * _Nonnull im
             image = [[animatedImageClass alloc] initWithAnimatedCoder:(id<SDAnimatedImageCoder>)progressiveCoder scale:scale];
             if (image) {
                 // Progressive decoding does not preload frames
+                // 渐进式解码不会预加载所有帧
             } else {
                 // Check image class matching
                 if (options & SDWebImageMatchAnimatedImageClass) {
@@ -176,6 +178,7 @@ UIImage * _Nullable SDImageLoaderDecodeProgressiveImageData(NSData * _Nonnull im
         }
     }
     if (!image) {
+        //这里获取的image还是未解码的
         image = [progressiveCoder incrementalDecodedImageWithOptions:coderOptions];
     }
     if (image) {

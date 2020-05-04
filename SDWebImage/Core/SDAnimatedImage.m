@@ -147,6 +147,7 @@ static CGFloat SDImageScaleFromPath(NSString *string) {
     if (!animatedCoder) {
         return nil;
     }
+    //获取已经解码的图片
     UIImage *image = [animatedCoder animatedImageFrameAtIndex:0];
     if (!image) {
         return nil;

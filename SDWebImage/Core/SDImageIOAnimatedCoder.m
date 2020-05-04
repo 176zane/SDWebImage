@@ -150,7 +150,7 @@ static NSString * kSDCGImageSourceRasterizationDPI = @"kCGImageSourceRasterizati
     CFRelease(cfFrameProperties);
     return frameDuration;
 }
-
+//这一步获取的图片还未解码
 + (UIImage *)createFrameAtIndex:(NSUInteger)index source:(CGImageSourceRef)source scale:(CGFloat)scale preserveAspectRatio:(BOOL)preserveAspectRatio thumbnailSize:(CGSize)thumbnailSize {
     // Parse the image properties
     NSDictionary *properties = (__bridge_transfer NSDictionary *)CGImageSourceCopyPropertiesAtIndex(source, index, NULL);
@@ -187,6 +187,7 @@ static NSString * kSDCGImageSourceRasterizationDPI = @"kCGImageSourceRasterizati
             NSUInteger rasterizationDPI = maxPixelSize * DPIPerPixel;
             options = @{kSDCGImageSourceRasterizationDPI : @(rasterizationDPI)};
         }
+        //创建未解码的图片
         imageRef = CGImageSourceCreateImageAtIndex(source, index, (__bridge CFDictionaryRef)options);
     } else {
         NSMutableDictionary *thumbnailOptions = [NSMutableDictionary dictionary];

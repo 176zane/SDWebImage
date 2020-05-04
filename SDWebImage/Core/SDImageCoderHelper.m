@@ -270,6 +270,7 @@ static const CGFloat kDestSeemOverlap = 2.0f;   // the numbers of pixels to over
     // Apply transform
     CGAffineTransform transform = SDCGContextTransformFromOrientation(orientation, CGSizeMake(newWidth, newHeight));
     CGContextConcatCTM(context, transform);
+    //通过绘制来解码
     CGContextDrawImage(context, CGRectMake(0, 0, width, height), cgImage); // The rect is bounding box of CGImage, don't swap width & height
     CGImageRef newImageRef = CGBitmapContextCreateImage(context);
     CGContextRelease(context);

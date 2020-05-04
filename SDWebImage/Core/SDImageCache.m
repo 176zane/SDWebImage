@@ -207,9 +207,12 @@
                             }
                         }
                     }
+                    //先将image编码 然后再存储在disk中
                     data = [[SDImageCodersManager sharedManager] encodedDataWithImage:image format:format options:nil];
                 }
+                
                 [self _storeImageDataToDisk:data forKey:key];
+                
                 if (image) {
                     // Check extended data
                     id extendedObject = image.sd_extendedObject;
@@ -440,7 +443,7 @@
         key = SDTransformedKeyForKey(key, transformerKey);
     }
     
-    // First check the in-memory cache...
+    //1 First check the in-memory cache...
     UIImage *image = [self imageFromMemoryCacheForKey:key];
     
     if (image) {
@@ -463,7 +466,7 @@
             }
         }
     }
-
+    //image 已经在内存缓存中找到，并且没有强制要求查询 image data
     BOOL shouldQueryMemoryOnly = (image && !(options & SDImageCacheQueryMemoryData));
     if (shouldQueryMemoryOnly) {
         if (doneBlock) {
@@ -472,7 +475,7 @@
         return nil;
     }
     
-    // Second check the disk cache...
+    //2 Second check the disk cache...
     NSOperation *operation = [NSOperation new];
     // Check whether we need to synchronously query disk
     // 1. in-memory cache hit & memoryDataSync

@@ -28,7 +28,7 @@
     
     // File signatures table: http://www.garykessler.net/library/file_sigs.html
     uint8_t c;
-    [data getBytes:&c length:1];
+    [data getBytes:&c length:1];//从data头部取出一个字节
     switch (c) {
         case 0xFF:
             return SDImageFormatJPEG;

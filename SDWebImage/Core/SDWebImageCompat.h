@@ -84,7 +84,8 @@
 #ifndef NS_OPTIONS
 #define NS_OPTIONS(_type, _name) enum _name : _type _name; enum _name : _type
 #endif
-
+//http://blog.benjamin-encz.de/post/main-queue-vs-main-thread/
+//检查当前是否处于主队列而不是主线程
 #ifndef dispatch_main_async_safe
 #define dispatch_main_async_safe(block)\
     if (dispatch_queue_get_label(DISPATCH_CURRENT_QUEUE_LABEL) == dispatch_queue_get_label(dispatch_get_main_queue())) {\

@@ -107,6 +107,7 @@ static void * SDMemoryCacheContext = &SDMemoryCacheContext;
             if ([obj isKindOfClass:[UIImage class]]) {
                 cost = [(UIImage *)obj sd_memoryCost];
             }
+            //weakCache中已经有了不需要再调用自己的setObject方法
             [super setObject:obj forKey:key cost:cost];
         }
     }

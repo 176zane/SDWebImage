@@ -83,6 +83,7 @@
 #pragma mark - SDImageCoder
 - (BOOL)canDecodeFromData:(NSData *)data {
     NSArray<id<SDImageCoder>> *coders = self.coders;
+    //反向遍历
     for (id<SDImageCoder> coder in coders.reverseObjectEnumerator) {
         if ([coder canDecodeFromData:data]) {
             return YES;
