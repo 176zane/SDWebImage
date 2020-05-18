@@ -72,6 +72,7 @@ static void * SDMemoryCacheContext = &SDMemoryCacheContext;
 
 // Current this seems no use on macOS (macOS use virtual memory and do not clear cache when memory warning). So we only override on iOS/tvOS platform.
 #if SD_UIKIT
+//收到内存警告时，清理内存缓存
 - (void)didReceiveMemoryWarning:(NSNotification *)notification {
     // Only remove cache, but keep weak cache
     [super removeAllObjects];

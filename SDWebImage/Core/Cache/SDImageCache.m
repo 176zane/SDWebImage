@@ -470,6 +470,7 @@
     BOOL shouldQueryMemoryOnly = (image && !(options & SDImageCacheQueryMemoryData));
     if (shouldQueryMemoryOnly) {
         if (doneBlock) {
+            //只回调image 不要image data
             doneBlock(image, nil, SDImageCacheTypeMemory);
         }
         return nil;
@@ -606,7 +607,7 @@
         }
     });
 }
-
+//app进入后台后或将要terminate时，清理过期的磁盘缓存
 - (void)deleteOldFilesWithCompletionBlock:(nullable SDWebImageNoParamsBlock)completionBlock {
     dispatch_async(self.ioQueue, ^{
         [self.diskCache removeExpiredData];

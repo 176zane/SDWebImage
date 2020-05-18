@@ -88,7 +88,7 @@ static NSString * const SDDiskCacheExtendedAttributeName = @"com.hackemist.SDDis
     NSString *cachePathForKey = [self cachePathForKey:key];
     // transform to NSUrl
     NSURL *fileURL = [NSURL fileURLWithPath:cachePathForKey];
-    
+    //data写入文件系统
     [data writeToURL:fileURL options:self.config.diskCacheWritingOptions error:nil];
     
     // disable iCloud backup
@@ -178,6 +178,7 @@ static NSString * const SDDiskCacheExtendedAttributeName = @"com.hackemist.SDDis
     NSMutableArray<NSURL *> *urlsToDelete = [[NSMutableArray alloc] init];
     for (NSURL *fileURL in fileEnumerator) {
         NSError *error;
+        //文件系统返回文件相关属性的值
         NSDictionary<NSString *, id> *resourceValues = [fileURL resourceValuesForKeys:resourceKeys error:&error];
         
         // Skip directories and errors.
